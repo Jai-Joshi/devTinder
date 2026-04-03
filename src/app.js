@@ -35,8 +35,19 @@ app.delete("/User", (req, res) =>{
     res.send("Deleted the user");
 })
 
+app.get("/getError", (req,res) =>{
+    throw new Error("This is an error");
+    res.send("This will not be sent");
+})
+
 app.use("/", (req, res) => {
     res.send("Hello World");
+});
+
+app.use("/", (err, req, res, next) => {
+    if(err){
+    res.status(500).send("Something went wrong: " + err.message);
+    }
 });
 
 app.listen(3333, () => {
