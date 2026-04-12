@@ -62,11 +62,19 @@ try{
    }     
 })
 
-app.patch("/updateUser", async (req, res)=>{
-   const userId = req.body.userId;
+app.patch("/updateUser/:userId", async (req, res)=>{
+   const userId = req.params?.userId
    const data = req.body;
 
    try{
+
+      const Allowed_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
+      const isUpdateAllowed = Object.keys(data).every((update) => Allowed_UPDATES.includes(update));
+
+      if(!isUpdateAllowed){
+         throw new Error("Invalid updates! Only photoUrl, about, gender, age, and skills can be updated.");
+      }
+
       const user = await User.findByIdAndUpdate(userId, data);
 
       if(!user){
