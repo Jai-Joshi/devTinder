@@ -1,10 +1,15 @@
 const express = require('express');
-const { authAdmin } = require("./middlewares/auth");
+const { userAuth } = require("./middlewares/auth");
 const app = express();
 const connectDB = require("./config/database");
 const User = require("./models/user");
 const { validateSignUpData } = require("./utils/validate");
 const bcrypt = require('bcrypt');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+
+
+app.use(cookieParser());
 
 app.use(express.json());
 
@@ -41,16 +46,17 @@ app.post("/signup", async (req, res) => {
 app.post("/login", async (req, res) => {
    try {
       const { email, password } = req.body;
-
       const user = await User.findOne({ email: email });
 
       if (!user) {
          res.send("Invalid email or password");
       }
 
-      const isPassValid = await bcrypt.compare(password, user.password);
+      const isPassValid = await user.validatePassword(password);
 
       if (isPassValid) {
+         const token = await user.getJWT();
+         res.cookie("token", token,{expires: new Date(Date.now() + 3600000)})
          res.send("User logged in successfully");
       }
       else {
@@ -58,6 +64,27 @@ app.post("/login", async (req, res) => {
       }
    } catch (err) {
       res.send("Error logging in user: " + err);
+   }
+
+})
+
+app.post('/sendConnectinoRequest', userAuth, async (req, res) => {
+   const user = req.user;
+
+   console.log('sending connection request');
+
+   res.send(user.firstName + " " + user.lastName + " sent a connection request");
+})
+   
+
+app.get("/profile", userAuth, async (req, res) => {
+
+   try {
+      const user = req.user;
+
+      res.send(user);
+   } catch (err) {
+      res.status(400).send("Error :" + err.message);
    }
 
 })

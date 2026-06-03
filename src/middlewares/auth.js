@@ -1,13 +1,35 @@
-const authAdmin =  (req, res, next) =>{
-    console.log('Entered in admin route');
+const jwt = require('jsonwebtoken');
+const User = require("../models/user");
 
-    const isAdminAuthorized = "abc123";
 
-    if(!isAdminAuthorized === "abc123"){
-        res.send("Admin is not authorized");
-    }else{
+const userAuth = async (req, res, next) => {
+    try {
+        const { token } = req.cookies;;
+        if (!token) {
+            throw new Error("No token found, please login again");
+        }
+
+        const decodeObj = await jwt.verify(token, "JJ@123");
+        console.log('decodeObj', decodeObj);
+
+        const { userId } = decodeObj;
+        console.log('id', userId);
+
+        const user = await User.findById(userId);
+        console.log('user', user);
+
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        req.user = user;
         next();
-    }    
+
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
 }
 
-module.exports = {authAdmin};
+
+
+module.exports = { userAuth };
