@@ -1,13 +1,56 @@
 const express = require('express');
 const requestRouter = express.Router();
 const { userAuth } = require('../middlewares/auth');
+const ConnectionRequestModel = require('../models/connectionRequest');
+const User = require('../models/user');
 
-requestRouter.post('/sendConnectionRequest', userAuth, async (req, res) => {
-   const user = req.user;
+requestRouter.post('/request/send/:status/:toUserId', userAuth, async (req, res) => {
+   try {
+      const fromUserId = req.user._id;
+      const { status, toUserId } = req.params;
 
-   console.log('sending connection request');
+      const allowedStatuses = ["ignored", "interested"];
+      if (!allowedStatuses.includes(status)) {
+         throw new Error(`Status must be one of ${allowedStatuses.join(", ")}`);
+      };
 
-   res.send(user.firstName + " " + user.lastName + " sent a connection request");
+      const toUser = await User.findById(toUserId);
+      if (!toUser) {
+         throw new Error("User with the provided toUserId does not exist");
+      }
+
+      if (fromUserId.equals(toUserId)) {
+         throw new Error("You cannot send a connection request to yourself");
+      }
+
+      const existingConnectionRequest = await ConnectionRequestModel.findOne({
+         $or: [
+            { fromUserId, toUserId },
+            { fromUserId: toUserId, toUserId: fromUserId }
+         ]
+      });
+
+      if (existingConnectionRequest) {
+         throw new Error("A connection request already exists between these users");
+      }
+
+      const connectionRequest = new ConnectionRequestModel({
+         fromUserId,
+         toUserId,
+         status
+      });
+
+      const data = await connectionRequest.save();
+
+      res.json({
+         message: `Connection request ${status} successfully sent to user with id ${toUserId}`,
+         data
+      })
+
+   } catch (err) {
+      res.status(400).send("Error :" + err.message);
+   }
+
 })
 
 module.exports = requestRouter;
